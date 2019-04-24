@@ -36,8 +36,8 @@ def read_files(tarfname):
     sentiment.dev_data, sentiment.dev_labels = read_tsv(tar, devname)
     print(len(sentiment.dev_data))
     print("-- transforming data and labels")
-    from sklearn.feature_extraction.text import CountVectorizer
-    sentiment.count_vect = CountVectorizer()
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    sentiment.count_vect = TfidfVectorizer()
     sentiment.trainX = sentiment.count_vect.fit_transform(sentiment.train_data)
     sentiment.devX = sentiment.count_vect.transform(sentiment.dev_data)
     from sklearn import preprocessing
