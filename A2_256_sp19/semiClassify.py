@@ -14,7 +14,7 @@ def train_classifier(X, y,ws):
 	#print("Best parameters: ", grid.best_params_)
 	#print("Best estimator: ", grid.best_estimator_)
 	#cls = grid.best_estimator_
-	cls = LogisticRegression(random_state=0, solver='lbfgs', max_iter=10000, warm_start=ws)
+	cls = LogisticRegression(C=0.1,random_state=0, solver='lbfgs', max_iter=10000, warm_start=ws)
 	cls.fit(X, y)
 	return cls
 

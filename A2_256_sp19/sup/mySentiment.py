@@ -191,99 +191,21 @@ def write_basic_kaggle_file(tsvfile, outfname):
             f.write("\n")
     f.close()
 
-def semi_train(cls):
-    print("\n")
-    print("-"*100)
-    print("\nReading unlabeled data")
-    unlabeled = read_unlabeled(tarfname, sentiment)
-    #print("len: ", len(unlabeled.data))
-    print("\nTraining semi-supervised classifier")
-    #print("x: ",unlabeled.X)
-    #tok = []
-    #pred = []
-    count = 0
-
-    import numpy as np
-    from scipy.sparse import vstack
-    percent = int(len(unlabeled.data))
-    print("percent: ",percent)
-    #partitioned_data = [(True, x) for x in unlabeled.data[:percent]]
-    #prev_labels = cls.predict(sentiment.devX)
-
-    """
-    while True:
-        data_dict = dict()
-        for index, data in enumerate(partitioned_data):
-            if data[0]:
-                newX = sentiment.count_vect.transform([data[1]])
-                newy = cls.predict(newX)
-                score = abs(cls.decision_function(newX))
-                data_dict[index] = (score,newX,newy,data[1])
-        data_dict = sorted(data_dict.items(), key = lambda kv:(kv[1][0], kv[0]))
-        for data in data_dict[len(data_dict)-100 if len(data_dict)>100 else 0 : len(data_dict)]:
-            #print(data[0],data[1][0])
-            partitioned_data[data[0]] = (False, data[1][3])
-            sentiment.train_data.append(data[1][3])
-            sentiment.trainy = np.concatenate((sentiment.trainy, data[1][2]))
-        sentiment.trainX = sentiment.count_vect.fit_transform(sentiment.train_data)
-        cls = classify.train_classifier(sentiment.trainX, sentiment.trainy,True)
-        sentiment.devX = sentiment.count_vect.transform(sentiment.dev_data)
-        labels = cls.predict(sentiment.devX)
-        count = np.sum(labels != prev_labels)
-        print(count)
-        if count == 0:
-            break
-        prev_labels = labels
-
-
-        """
-
-    print(sentiment.trainy)
-    used = dict()
-    conf = 0.8
-    uLen = len(unlabeled.data)
-    stop_dis = 1000
-    prev = 0
-    while True:
-        found = False
-        confident_labels = cls.predict_proba(unlabeled.X[:int(uLen),:])
-        for index,p in enumerate(confident_labels):
-            y = -1
-            if index in used:
-                continue
-            if p[0] >= conf or p[1] >= conf:
-                y = cls.predict(unlabeled.X[index])
-                used[index] = True
-                #found = True
-            if y != -1:
-                sentiment.trainX = vstack([sentiment.trainX,unlabeled.X[index]])
-                sentiment.trainy = np.concatenate((sentiment.trainy, y))
-        print("len: ", len(used),uLen)
-        if len(used)-prev <= stop_dis:
-            break
-        prev = len(used)
-        cls = classify.train_classifier(sentiment.trainX, sentiment.trainy,False)
-
-    print("\nEvaluating semi-supervised classifier")
-    classify.evaluate(sentiment.trainX, sentiment.trainy, cls, 'train')
-    classify.evaluate(sentiment.devX, sentiment.devy, cls, 'dev')
-    print("Writing predictions to a file")
-    unlabeled = read_unlabeled(tarfname, sentiment)
-    write_pred_kaggle_file(unlabeled, cls, "data/sentiment-pred.csv", sentiment)
-
-
 if __name__ == "__main__":
     print("Reading data")
     tarfname = "data/sentiment.tar.gz"
     sentiment = read_files(tarfname)
     print("\nTraining classifier")
     import classify
-    cls = classify.train_classifier(sentiment.trainX, sentiment.trainy,False)
+    cls = classify.train_classifier(sentiment.trainX, sentiment.trainy)
     print("\nEvaluating")
     classify.evaluate(sentiment.trainX, sentiment.trainy, cls, 'train')
     classify.evaluate(sentiment.devX, sentiment.devy, cls, 'dev')
-    semi_train(cls)
 
+    print("\nReading unlabeled data")
+    unlabeled = read_unlabeled(tarfname, sentiment)
+    print("Writing predictions to a file")
+    write_pred_kaggle_file(unlabeled, cls, "data/sentiment-pred.csv", sentiment)
     #write_basic_kaggle_file("data/sentiment-unlabeled.tsv", "data/sentiment-basic.csv")
 
     # You can't run this since you do not have the true labels

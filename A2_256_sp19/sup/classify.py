@@ -1,23 +1,23 @@
 #!/bin/python
 
-def train_classifier(X, y,ws):
+def train_classifier(X, y):
 	"""Train a classifier using the given training data.
 
 	Trains logistic regression on the input data with default parameters.
 	"""
 	from sklearn.linear_model import LogisticRegression
-	#from sklearn.model_selection import GridSearchCV
-	#param_grid = {'C': [0.001, 0.01, 0.1, 1, 2,3,4,5, 6,7,8,9,10]}
-	#grid = GridSearchCV(LogisticRegression(), param_grid, cv=5)
-	#grid.fit(X, y)
-	#print("Best cross-validation score: {:.2f}".format(grid.best_score_))
-	#print("Best parameters: ", grid.best_params_)
+	from sklearn.model_selection import GridSearchCV
+	param_grid = {'C': [0.001, 0.01, 0.1, 1, 2,3,4,5, 6,7,8,9,10]}
+	grid = GridSearchCV(LogisticRegression(), param_grid, cv=5)
+	grid.fit(X, y)
+
+	print("Best cross-validation score: {:.2f}".format(grid.best_score_))
+	print("Best parameters: ", grid.best_params_)
 	#print("Best estimator: ", grid.best_estimator_)
 	#cls = grid.best_estimator_
-	cls = LogisticRegression(random_state=0, solver='lbfgs', max_iter=10000, warm_start=ws)
+	cls = LogisticRegression(random_state=0, solver='lbfgs', max_iter=10000)
 	cls.fit(X, y)
 	return cls
-
 
 def evaluate(X, yt, cls, name='data'):
 	"""Evaluated a classifier on the given labeled data using accuracy."""
