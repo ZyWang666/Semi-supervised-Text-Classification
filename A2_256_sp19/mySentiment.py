@@ -10,27 +10,17 @@ stemmer = PorterStemmer()
 tokenizer = RegexpTokenizer(r'\w+')
 stemmer = PorterStemmer()
 
-stop_words = "a about above after again against all am an and any are aren't as at be \
-because been before being below between both but by can't cannot could couldn't did didn't \
-do does doesn't doing don't down during each few for from further had hadn't has hasn't have \
-haven't having he he'd he'll he's her here here's hers herself him himself his how how's i i'd \
-i'll i'm i've if in into is isn't it it's its itself let's me more most mustn't my myself no nor \
-not of off on once only or other ought our ours ourselves out over own same shan't she she'd she'll \
-she's should shouldn't so some such than that that's the their theirs them themselves then there there's \
-these they they'd they'll they're they've this those through to too under until up very was wasn't we we'd \
-we'll we're we've were weren't what what's when when's where where's which while who who's whom why why's \
-with won't would wouldn't you you'd you'll you're you've your yours yourself yourselves".split(' ')
-if mode == 's':
-    stop_words = set(dict.fromkeys([stemmer.stem(word) for word in stop_words]))
+#if mode == 's':
+#    stop_words = set(dict.fromkeys([stemmer.stem(word) for word in stop_words]))
 
 def tokenize(text):
     tokens = tokenizer.tokenize(text)
-    stems = [stemmer.stem(item) for item in tokens]
+    #stems = [stemmer.stem(item) for item in tokens]
 
-    res = tokens if mode == 't' else stems
-    for w in stop_words:
-        while w in res:
-            res.remove(w)
+    #res = tokens if mode == 't' else stems
+    #for w in stop_words:
+    #    while w in res:
+    #        res.remove(w)
     #print(res)
     return tokens
 
@@ -74,7 +64,8 @@ def read_files(tarfname):
     print(len(sentiment.dev_data))
     print("-- transforming data and labels")
     from sklearn.feature_extraction.text import TfidfVectorizer
-    sentiment.count_vect = TfidfVectorizer(tokenizer=tokenize)
+    #sentiment.count_vect = TfidfVectorizer(tokenizer=tokenize,stop_words='english',sublinear_tf=True,smooth_idf=False,use_idf=True,binary=True)
+    sentiment.count_vect = TfidfVectorizer(tokenizer=tokenize,sublinear_tf=False,smooth_idf=False,use_idf=True,binary=True,max_df = 3000)
     sentiment.trainX = sentiment.count_vect.fit_transform(sentiment.train_data)
     sentiment.devX = sentiment.count_vect.transform(sentiment.dev_data)
     print("train shape: ", sentiment.trainX.shape)
@@ -207,36 +198,6 @@ def semi_train(cls):
     from scipy.sparse import vstack
     percent = int(len(unlabeled.data))
     print("percent: ",percent)
-    #partitioned_data = [(True, x) for x in unlabeled.data[:percent]]
-    #prev_labels = cls.predict(sentiment.devX)
-
-    """
-    while True:
-        data_dict = dict()
-        for index, data in enumerate(partitioned_data):
-            if data[0]:
-                newX = sentiment.count_vect.transform([data[1]])
-                newy = cls.predict(newX)
-                score = abs(cls.decision_function(newX))
-                data_dict[index] = (score,newX,newy,data[1])
-        data_dict = sorted(data_dict.items(), key = lambda kv:(kv[1][0], kv[0]))
-        for data in data_dict[len(data_dict)-100 if len(data_dict)>100 else 0 : len(data_dict)]:
-            #print(data[0],data[1][0])
-            partitioned_data[data[0]] = (False, data[1][3])
-            sentiment.train_data.append(data[1][3])
-            sentiment.trainy = np.concatenate((sentiment.trainy, data[1][2]))
-        sentiment.trainX = sentiment.count_vect.fit_transform(sentiment.train_data)
-        cls = classify.train_classifier(sentiment.trainX, sentiment.trainy,True)
-        sentiment.devX = sentiment.count_vect.transform(sentiment.dev_data)
-        labels = cls.predict(sentiment.devX)
-        count = np.sum(labels != prev_labels)
-        print(count)
-        if count == 0:
-            break
-        prev_labels = labels
-
-
-        """
 
     print(sentiment.trainy)
     used = dict()
@@ -246,30 +207,27 @@ def semi_train(cls):
     prev = 0
     while True:
         found = False
-        confident_labels = cls.predict_proba(unlabeled.X[:int(uLen),:])
+        confident_labels = cls.predict_proba(unlabeled.X[:int((uLen/10)),:])
         for index,p in enumerate(confident_labels):
             y = -1
             if index in used:
                 continue
             if p[0] >= conf or p[1] >= conf:
                 y = cls.predict(unlabeled.X[index])
-                used[index] = True
-                #found = True
+                used[index] = y[0]
             if y != -1:
                 sentiment.trainX = vstack([sentiment.trainX,unlabeled.X[index]])
                 sentiment.trainy = np.concatenate((sentiment.trainy, y))
-        print("len: ", len(used),uLen)
-        if len(used)-prev <= stop_dis:
+        print("len: ", len(used))
+        if len(used) -prev == 0:
             break
         prev = len(used)
-        cls = classify.train_classifier(sentiment.trainX, sentiment.trainy,False)
+        cls = semiClassify.train_classifier(sentiment.trainX, sentiment.trainy,False)
+        print(cls.densify())
 
     print("\nEvaluating semi-supervised classifier")
-    classify.evaluate(sentiment.trainX, sentiment.trainy, cls, 'train')
-    classify.evaluate(sentiment.devX, sentiment.devy, cls, 'dev')
-    print("Writing predictions to a file")
-    unlabeled = read_unlabeled(tarfname, sentiment)
-    write_pred_kaggle_file(unlabeled, cls, "data/sentiment-pred.csv", sentiment)
+    semiClassify.evaluate(sentiment.trainX, sentiment.trainy, cls, 'train')
+    semiClassify.evaluate(sentiment.devX, sentiment.devy, cls, 'dev')
 
 
 if __name__ == "__main__":
@@ -277,13 +235,17 @@ if __name__ == "__main__":
     tarfname = "data/sentiment.tar.gz"
     sentiment = read_files(tarfname)
     print("\nTraining classifier")
-    import classify
-    cls = classify.train_classifier(sentiment.trainX, sentiment.trainy,False)
+    import semiClassify
+    cls = semiClassify.train_classifier(sentiment.trainX, sentiment.trainy,False)
     print("\nEvaluating")
-    classify.evaluate(sentiment.trainX, sentiment.trainy, cls, 'train')
-    classify.evaluate(sentiment.devX, sentiment.devy, cls, 'dev')
-    semi_train(cls)
+    semiClassify.evaluate(sentiment.trainX, sentiment.trainy, cls, 'train')
+    semiClassify.evaluate(sentiment.devX, sentiment.devy, cls, 'dev')
 
+    features = sentiment.count_vect.get_feature_names()
+    print("Writing predictions to a file")
+    unlabeled = read_unlabeled(tarfname, sentiment)
+    write_pred_kaggle_file(unlabeled, cls, "data/sentiment-pred.csv", sentiment)
+    
     #write_basic_kaggle_file("data/sentiment-unlabeled.tsv", "data/sentiment-basic.csv")
 
     # You can't run this since you do not have the true labels
